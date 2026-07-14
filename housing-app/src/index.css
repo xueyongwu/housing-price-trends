@@ -1,0 +1,58 @@
+/* 设计 token —— 编辑型数据新闻风格：暖白纸底、发丝线、衬线标题、语义色只留涨/平/跌 */
+:root {
+  /* 纸面 */
+  --paper: #faf8f4;
+  --surface: #fffefb;
+  --rule: #e6e0d6;
+  --rule-soft: #f0ebe3;
+
+  /* 墨色 */
+  --ink: #1f1d1a;
+  --ink-2: #4a4640;
+  --ink-3: #8a8377;
+  --ink-4: #b3aca0;
+
+  /* 语义色（红涨绿跌，饱和度压低一档） */
+  --up: #b23b32;
+  --flat: #c4bdb0;
+  --down: #2f7a5c;
+
+  /* 数据系列（新房 / 二手） */
+  --series-1: #2c5f7c;
+  --series-2: #c07a35;
+
+  --sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --serif:
+    "Songti SC", "Source Han Serif SC", "Noto Serif SC", Georgia, serif;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  display: flex;
+}
+
+/* 所有数字等宽，tooltip / 表格里不会左右跳动 */
+table,
+.kpi-value,
+.city-value,
+.kpi-val {
+  font-variant-numeric: tabular-nums;
+}
