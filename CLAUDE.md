@@ -33,11 +33,13 @@ cd housing-app && pnpm lint     # eslint
 
 改完 parser 的标准闭环：`--reparse` → `test_parse.py` → `generate_js_data.py`。不用重新联网抓。
 
+更新数据：`./update.sh`（抓取 + 自检 + 生成，改动留在工作区）。线上有 `update-data.yml` 每月 16–25 日自动跑同样的流程。
+
 ## 约束（踩过坑，别再踩）
 
 **主指数表必须解析出 70 城，少了就 raise。** 表格是双栏并排（左 35 城 + 右 35 城），列数靠 `parse_main_index_table` 从首行推断（6 列 / 8 列）。推断错会只吃到左半栏，静默落盘 35 城残缺数据 —— 2026-01 真发生过。`EXPECT_CITIES` 断言就是防这个，不要为了「让它先跑通」把断言放宽。
 
-**原始 HTML 必须存档，解析失败也要存。** `data/raw/YYYY-MM.html.gz`（gzip，1.4MB → ~140KB，才进得了 git）。统计局改版或撤稿后，靠它离线复现 + `--reparse`，不用重抓。
+**原始 HTML 必须存档，解析失败也要存。** `data/raw/YYYY-MM.html.gz`（gzip，1.4MB → ~140KB，才进得了 git）。统计局改版或撤稿后，靠它离线复现 + `--reparse`，不用重抓。写入时必须 `mtime=0`（`save_raw` 里）—— gzip 默认把当前时间写进文件头，同样的 HTML 每次压出来字节都不同，git 会把内容没变的存档全标成 modified，自动更新流程就没法靠 diff 判断有没有新数据。
 
 **`housingData.generated.js`（生成）和 `housingData.js`（手写辅助函数）必须分开。** 早前混在一个文件里，重跑 generator 把手写函数全冲掉了。generated 文件只导出数据，js 文件 re-export 数据 + 加函数。
 

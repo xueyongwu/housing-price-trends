@@ -409,8 +409,11 @@ def save_raw(html, year, month):
     if not (year and month):
         return
     os.makedirs(RAW_DIR, exist_ok=True)
-    with gzip.open(raw_path(year, month), "wt", encoding="utf-8") as f:
-        f.write(html)
+    # mtime=0: gzip 默认把当前时间写进文件头，同样的 HTML 每次压出来字节都不同，
+    # git 会把内容没变的存档全标成 modified —— 自动更新流程就没法靠 diff 判断有没有新数据。
+    with open(raw_path(year, month), "wb") as f:
+        with gzip.GzipFile(fileobj=f, mode="wb", mtime=0) as gz:
+            gz.write(html.encode("utf-8"))
 
 
 def load_raw(path):

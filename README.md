@@ -74,18 +74,18 @@ pnpm build    # 构建到 dist/
 pnpm lint
 ```
 
-### 更新数据到线上
+### 更新数据
 
-统计局一般在每月 16 日前后发布上月数据。发布后：
+**自动**：`.github/workflows/update-data.yml` 每月 16–25 日每天跑一次（统计局约每月 16 日发布上月数据，偶有延迟）。抓到新数据才提交并触发重新部署，没有新数据就什么都不做。平时不用管。
+
+**手动**：`./update.sh` 一把跑完抓取 → parser 自检 → 生成前端数据，改动留在工作区由你 review：
 
 ```bash
-.venv/bin/python scrape_housing_data.py --year 2026
-.venv/bin/python test_parse.py
-.venv/bin/python generate_js_data.py
-git add -A && git commit -m "data: 更新至 2026 年 X 月" && git push
+./update.sh          # 抓当年（1 月时连上一年一起抓）
+./update.sh 2025     # 抓指定年份
 ```
 
-推送到 `main` 后 GitHub Actions 自动构建并部署（见 `.github/workflows/deploy.yml`）。
+确认无误后 `git add -A && git commit -m "data: 更新数据" && git push`，推送到 `main` 会自动构建部署（见 `.github/workflows/deploy.yml`）。
 
 ## 实现要点
 
