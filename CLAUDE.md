@@ -60,4 +60,6 @@ cd housing-app && pnpm lint     # eslint
 
 ## 前端
 
-单页应用，只有 `pages/HomePage.jsx` 一个页面，直接用 `echarts` 命令式 API（`useRef` + `useEffect`），不走 `echarts-for-react`。图表视觉统一走 `chartTheme.js` 的 `COLORS` / `titleStyle` / `axisCommon` / `tooltipCommon`，和 `index.css` 的 token 对齐 —— 加新图表复用这些，别各写各的颜色。
+单页应用，只有 `pages/HomePage.jsx` 一个页面，直接用 echarts 命令式 API（`useRef` + `useEffect`）。图表视觉统一走 `chartTheme.js` 的 `COLORS` / `titleStyle` / `axisCommon` / `tooltipCommon`，和 `index.css` 的 token 对齐 —— 加新图表复用这些，别各写各的颜色。
+
+**echarts 按需引入**：从 `src/echarts.js` 导入，不要 `import * as echarts from "echarts"`（那是全量，bundle 会大 500KB+）。用到新的图表类型或组件时，必须先在 `src/echarts.js` 的 `echarts.use([...])` 里注册 —— 漏注册时 echarts **不报错**，而是静默不渲染那部分。「option 写了但没效果」先查这里。

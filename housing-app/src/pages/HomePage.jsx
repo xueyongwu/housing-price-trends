@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, useState } from "react";
-import * as echarts from "echarts";
+import { echarts } from "../echarts";
 import {
   dataByYear,
   availableYears,
