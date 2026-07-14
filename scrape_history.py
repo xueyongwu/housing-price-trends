@@ -13,7 +13,7 @@ import re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scrape_housing_data import (
     fetch_page, extract_table_data, extract_month_from_title,
-    save_raw, merge_save,
+    save_raw, merge_save, existing_months,
     ARTICLE_KEYWORD, BASE_URL, HEADERS, log
 )
 import requests
@@ -97,16 +97,23 @@ def find_all_articles_for_years(target_years):
     return articles
 
 
-def scrape_articles(articles):
-    """抓取文章数据。返回 (成功数据, 失败标题)"""
+def scrape_articles(articles, force=False):
+    """抓取文章数据。已抓过的月份默认跳过。返回 (成功数据, 失败标题)"""
     all_data = []
     failures = []
+    skipped = []
+
+    have = set() if force else existing_months()
 
     for i, (title, url, pub_date) in enumerate(articles, 1):
+        year_val, month_val = extract_month_from_title(title)
+
+        if year_val and month_val and (year_val, int(month_val)) in have:
+            skipped.append(f"{year_val}-{int(month_val):02d}")
+            continue
+
         log(f"\n[{i}/{len(articles)}] {title}")
         log(f"  URL: {url}")
-
-        year_val, month_val = extract_month_from_title(title)
 
         html = fetch_page(url)
         if not html:
@@ -133,6 +140,9 @@ def scrape_articles(articles):
 
         if i < len(articles):
             time.sleep(1.0)
+
+    if skipped:
+        log(f"\n⏭️  跳过 {len(skipped)} 个已抓过的月份: {', '.join(skipped)}")
 
     return all_data, failures
 
@@ -161,8 +171,12 @@ def main():
     all_data, failures = scrape_articles(articles)
 
     if not all_data:
-        log("❌ 未成功抓取任何数据")
-        sys.exit(1)
+        # 历史数据已经抓全时会走到这里，是正常情况，不是失败
+        if failures:
+            log(f"❌ {len(failures)} 篇抓取失败，且无新数据")
+            sys.exit(1)
+        log("✅ 无新数据，历史数据已抓全")
+        return
 
     # 3. 保存（合并进统一数据文件）
     log(f"\n💾 步骤3: 保存数据...")

@@ -9,6 +9,7 @@ import glob
 import os
 import sys
 
+import scrape_housing_data as s
 from scrape_housing_data import extract_table_data, load_raw, EXPECT_CITIES, RAW_DIR
 
 
@@ -48,7 +49,37 @@ def test_half_parsed_table_raises():
     raise AssertionError("35 城的残缺表格没有报错 —— 断言失效了")
 
 
+def test_existing_months_requires_both_data_and_archive():
+    """
+    增量抓取靠 existing_months() 决定跳过谁。判"已有"必须同时满足：数据在 + 存档在。
+    只看数据文件的话，存档丢了的月份会被永久跳过，再也补不回来。
+    """
+    import json
+    import tempfile
+
+    tmp = tempfile.mkdtemp()
+    orig_data_file, orig_raw_dir = s.DATA_FILE, s.RAW_DIR
+    s.DATA_FILE = os.path.join(tmp, "data.json")
+    s.RAW_DIR = os.path.join(tmp, "raw")
+
+    try:
+        # 两个月都在数据文件里，但只有 1 月有存档
+        with open(s.DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(
+                [{"year": "2099", "month": "1"}, {"year": "2099", "month": "2"}], f
+            )
+        s.save_raw("<html>存档</html>", "2099", "1")
+
+        have = s.existing_months()
+        assert ("2099", 1) in have, "有数据有存档 → 应跳过"
+        assert ("2099", 2) not in have, "存档缺失 → 必须重抓，不能跳过"
+        print("✅ 存档缺失的月份不会被误判为已抓取")
+    finally:
+        s.DATA_FILE, s.RAW_DIR = orig_data_file, orig_raw_dir
+
+
 if __name__ == "__main__":
     test_half_parsed_table_raises()
+    test_existing_months_requires_both_data_and_archive()
     test_all_archived_html_parses()
     print("\n全部通过")

@@ -25,6 +25,9 @@
     # 离线重解析已存档的 HTML（统计局改版后修完 parser 用这个，不发网络请求）
     python scrape_housing_data.py --reparse
 
+    # 重抓已有月份（默认增量：已抓过的月份跳过，不重复下载）
+    python scrape_housing_data.py --force
+
 输出：
     data/70城房价.json   全部月份，按 (年,月) 去重，重复运行合并而非新建文件
     data/raw/YYYY-MM.html 原始 HTML 存档，供 --reparse 使用
@@ -421,6 +424,26 @@ def load_raw(path):
         return f.read()
 
 
+def existing_months():
+    """
+    已抓过的 (年, 月)。用于增量抓取：这些月份直接跳过，不重新下载文章页（每篇约 1.4MB）。
+
+    两个条件都满足才算"已有"：DATA_FILE 里解析出了数据，且 raw 存档还在。
+    少了任一个都得重抓 —— 只有存档没数据说明当时解析失败了，只有数据没存档则无法离线复现。
+    """
+    if not os.path.exists(DATA_FILE):
+        return set()
+
+    with open(DATA_FILE, encoding="utf-8") as f:
+        entries = json.load(f)
+
+    return {
+        (e["year"], int(e["month"]))
+        for e in entries
+        if os.path.exists(raw_path(e["year"], e["month"]))
+    }
+
+
 def merge_save(new_entries):
     """按 (年,月) 合并进 DATA_FILE，同月覆盖。"""
     rows = {}
@@ -436,6 +459,17 @@ def merge_save(new_entries):
     save_json(merged, DATA_FILE)
     log(f"   共 {len(merged)} 个月 ({merged[0]['year']}年{merged[0]['month']}月 "
         f"→ {merged[-1]['year']}年{merged[-1]['month']}月)")
+
+
+def export_csv():
+    """
+    从 DATA_FILE 导出全量 CSV。
+
+    必须读 DATA_FILE 而不是本次抓到的数据 —— 增量抓取下本次可能只抓到 1 个月甚至 0 个月，
+    拿它导出会得到一份只有新月份的残缺 CSV。
+    """
+    with open(DATA_FILE, encoding="utf-8") as f:
+        save_csv(json.load(f), os.path.join(OUTPUT_DIR, "70城房价.csv"))
 
 
 def save_csv(all_data, filepath):
@@ -472,13 +506,14 @@ def save_csv(all_data, filepath):
 # 主流程
 # ============================================================
 
-def scrape(year=None, fmt="json"):
+def scrape(year=None, fmt="json", force=False):
     """
     主抓取函数。
 
     参数:
         year: 指定年份（如 2026），None 表示不限年份
         fmt: 输出格式 "json" 或 "csv"
+        force: 重抓已有月份（默认跳过）
     """
     log("=" * 60)
     log("  国家统计局 - 70城房价数据抓取")
@@ -501,12 +536,19 @@ def scrape(year=None, fmt="json"):
     log(f"\n📊 步骤2: 抓取数据...")
     all_data = []
     failures = []
+    skipped = []
+
+    have = set() if force else existing_months()
 
     for i, (title, url, pub_date) in enumerate(articles, 1):
+        year_val, month_val = extract_month_from_title(title)
+
+        if year_val and month_val and (year_val, int(month_val)) in have:
+            skipped.append(f"{year_val}-{int(month_val):02d}")
+            continue
+
         log(f"\n[{i}/{len(articles)}] {title}")
         log(f"  URL: {url}")
-
-        year_val, month_val = extract_month_from_title(title)
 
         html = fetch_page(url)
         if not html:
@@ -535,16 +577,26 @@ def scrape(year=None, fmt="json"):
         if i < len(articles):
             time.sleep(REQUEST_DELAY)
 
+    if skipped:
+        log(f"\n⏭️  跳过 {len(skipped)} 个已抓过的月份: {', '.join(skipped)}")
+        log("   （要重抓请加 --force）")
+
     if not all_data:
-        log("\n❌ 未成功抓取任何数据。")
-        sys.exit(1)
+        # 没有新数据 ≠ 失败。每月定时任务在数据发布前跑到这里是常态，必须正常退出，
+        # 否则 CI 会天天报红。真正的失败走 failures 分支。
+        if failures:
+            log(f"\n❌ {len(failures)} 篇抓取失败，且无新数据。")
+            sys.exit(1)
+        log("\n✅ 无新数据，已是最新。")
+        if fmt == "csv":
+            export_csv()
+        return
 
     # 3. 保存数据
     log(f"\n💾 步骤3: 保存数据...")
+    merge_save(all_data)
     if fmt == "csv":
-        save_csv(all_data, os.path.join(OUTPUT_DIR, "70城房价.csv"))
-    else:
-        merge_save(all_data)
+        export_csv()
 
     # 4. 输出摘要
     log("\n" + "=" * 60)
@@ -649,6 +701,8 @@ def main():
                         help="直接抓取指定URL的数据页面")
     parser.add_argument("--reparse", action="store_true",
                         help="离线重解析 data/raw/ 下的存档 HTML，不发网络请求")
+    parser.add_argument("--force", action="store_true",
+                        help="重抓已有月份（默认跳过已抓过的，只抓新数据）")
 
     args = parser.parse_args()
 
@@ -681,7 +735,7 @@ def main():
         return
 
     year = None if args.all else args.year
-    scrape(year=year, fmt=args.format)
+    scrape(year=year, fmt=args.format, force=args.force)
 
 
 if __name__ == "__main__":

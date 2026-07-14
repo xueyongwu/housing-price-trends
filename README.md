@@ -57,8 +57,11 @@ cd housing-app && pnpm install
 .venv/bin/python scrape_housing_data.py --all         # 抓全部年份
 .venv/bin/python scrape_housing_data.py --url <URL>   # 抓指定文章页
 .venv/bin/python scrape_housing_data.py --reparse     # 离线重解析存档，零网络请求
+.venv/bin/python scrape_housing_data.py --force       # 重抓已有月份
 .venv/bin/python scrape_history.py                    # 批量补抓历史数据
 ```
+
+**抓取是增量的**：已抓过的月份直接跳过，不重复下载文章页（每篇约 1.4MB）。判断依据是「数据文件里有该月 + `data/raw/` 里有对应存档」，两个条件都满足才算已有 —— 存档丢了的月份会重抓，避免永久跳过再也补不回来。要强制重抓加 `--force`。
 
 原始 HTML 会存档到 `data/raw/`，解析失败也照样存 —— 统计局改版或撤稿后，靠它离线复现问题、修完 parser 用 `--reparse` 重跑，不必重新联网抓。
 
