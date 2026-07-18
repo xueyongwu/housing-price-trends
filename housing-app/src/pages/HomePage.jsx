@@ -12,11 +12,13 @@ import { COLORS, titleStyle, axisCommon, tooltipCommon } from "../chartTheme";
 import "../App.css";
 
 const HOUSE_TYPES = [
-  { key: "newHouse", label: "新建商品住宅" },
   { key: "secondHand", label: "二手住宅" },
+  { key: "newHouse", label: "新建商品住宅" },
 ];
 // 分级口径跟着数据走（国家统计局：一线 4 / 二线 31 / 三线 35）
 const tierOrder = Object.keys(cityTiers);
+// ponytail: 挂载时判一次，旋转屏幕不重算；有人抱怨再监听 resize
+const isMobile = () => window.innerWidth < 768;
 
 function CityListKpi({ label, cities, weak }) {
   return (
@@ -39,7 +41,7 @@ function HomePage() {
   const yearChartRef = useRef(null);
   const yearChartInstance = useRef(null);
 
-  const [houseType, setHouseType] = useState("newHouse");
+  const [houseType, setHouseType] = useState("secondHand");
   const [selectedYear, setSelectedYear] = useState(availableYears[availableYears.length - 1]);
   const [highlightedMonth, setHighlightedMonth] = useState(null);
   const [showAllCities, setShowAllCities] = useState(false);
@@ -101,6 +103,10 @@ function HomePage() {
 
     const counts = multiYearData.counts[houseType];
     const typeLabel = HOUSE_TYPES.find((t) => t.key === houseType).label;
+    const mobile = isMobile();
+    const total = multiYearData.timeline.length;
+    // 手机默认只看最近 12 个月，历史靠拖拽/双指缩放；全量标签在小屏挤成一团
+    const zoomStart = mobile ? Math.max(0, (1 - 12 / total) * 100) : 0;
 
     const mkSeries = (name, key, color, extra = {}) => ({
       name,
@@ -116,11 +122,13 @@ function HomePage() {
 
     const option = {
       title: {
-        ...titleStyle(`70城${typeLabel}环比涨跌城市数量`, 19),
+        ...titleStyle(`70城${typeLabel}环比涨跌城市数量`, mobile ? 15 : 19),
         top: 0,
-        itemGap: 10,
-        subtext: "单位：城市个数　2021年7月 — 2026年5月　数据来源：国家统计局",
-        subtextStyle: { fontSize: 12, color: COLORS.ink3, lineHeight: 18 },
+        itemGap: mobile ? 6 : 10,
+        subtext: mobile
+          ? "单位：城市个数　数据来源：国家统计局"
+          : "单位：城市个数　2021年7月 — 2026年5月　数据来源：国家统计局",
+        subtextStyle: { fontSize: mobile ? 11 : 12, color: COLORS.ink3, lineHeight: 18 },
       },
       tooltip: {
         ...tooltipCommon,
@@ -129,7 +137,7 @@ function HomePage() {
         formatter: (params) => {
           let s = `<b style="color:${COLORS.ink}">${params[0].axisValue}</b><br/>`;
           params.forEach((p) => {
-            s += `${p.marker} ${p.seriesName}　<b style="color:${COLORS.ink}">${p.value}</b> 城<br/>`;
+            s += `${p.marker} ${p.seriesName}&nbsp;&nbsp;<b style="color:${COLORS.ink}">${p.value}</b> 城<br/>`;
           });
           return s;
         },
@@ -141,7 +149,9 @@ function HomePage() {
         itemHeight: 10,
         textStyle: { fontSize: 12, color: COLORS.ink2 },
       },
-      grid: { left: 46, right: 16, top: 76, bottom: 62 },
+      grid: mobile
+        ? { left: 34, right: 8, top: 64, bottom: 72 }
+        : { left: 46, right: 16, top: 76, bottom: 76 },
       xAxis: {
         ...axisCommon,
         type: "category",
@@ -171,7 +181,7 @@ function HomePage() {
         axisLine: { show: false },
         axisTick: { show: false },
       },
-      dataZoom: [{ type: "inside", start: 0, end: 100 }],
+      dataZoom: [{ type: "inside", start: zoomStart, end: 100 }],
       series: [
         mkSeries("上涨", "up", COLORS.up, {
           markLine: {
@@ -202,6 +212,7 @@ function HomePage() {
     if (!yearChartRef.current) return;
     if (yearChartInstance.current) yearChartInstance.current.dispose();
     yearChartInstance.current = echarts.init(yearChartRef.current);
+    const mobile = isMobile();
 
     const mkLine = (name, data, color) => ({
       name,
@@ -209,17 +220,18 @@ function HomePage() {
       data,
       smooth: true,
       symbol: "circle",
-      symbolSize: 8,
+      symbolSize: mobile ? 6 : 8,
       lineStyle: { width: 2.5 },
       itemStyle: { color },
-      label: { show: true, fontSize: 12, fontWeight: "bold", color: COLORS.ink2 },
+      // 小屏上两条线的数值标签互相压字，靠 tooltip 看数
+      label: { show: !mobile, fontSize: 12, fontWeight: "bold", color: COLORS.ink2 },
     });
 
     yearChartInstance.current.setOption({
       title: {
-        ...titleStyle(`${selectedYear}年70城环比上涨城市数量`, 17),
+        ...titleStyle(`${selectedYear}年70城环比上涨城市数量`, mobile ? 15 : 17),
         top: 0,
-        itemGap: 10,
+        itemGap: mobile ? 6 : 10,
         subtext: "点击折线上的点可定位到下方明细表对应月份",
         subtextStyle: { fontSize: 12, color: COLORS.ink3, lineHeight: 18 },
       },
@@ -229,7 +241,7 @@ function HomePage() {
         formatter: (params) => {
           let s = `<b style="color:${COLORS.ink}">${params[0].axisValue}</b><br/>`;
           params.forEach((p) => {
-            s += `${p.marker} ${p.seriesName}　<b style="color:${COLORS.ink}">${p.value}</b> 城<br/>`;
+            s += `${p.marker} ${p.seriesName}&nbsp;&nbsp;<b style="color:${COLORS.ink}">${p.value}</b> 城<br/>`;
           });
           return s;
         },
@@ -240,7 +252,9 @@ function HomePage() {
         itemWidth: 14,
         textStyle: { fontSize: 12, color: COLORS.ink2 },
       },
-      grid: { left: 46, right: 16, top: 76, bottom: 50 },
+      grid: mobile
+        ? { left: 34, right: 8, top: 64, bottom: 46 }
+        : { left: 46, right: 16, top: 76, bottom: 50 },
       xAxis: { ...axisCommon, type: "category", data: months },
       yAxis: {
         ...axisCommon,
@@ -276,7 +290,10 @@ function HomePage() {
     <div className="page">
       <header className="page-header">
         <h1 className="page-title">70城房价趋势分析</h1>
-        <p className="page-subtitle">2021-2026年新建商品住宅与二手住宅环比变化 · 数据来源：国家统计局</p>
+        <p className="page-subtitle">
+          2021-2026年新建商品住宅与二手住宅环比变化
+          <span className="subtitle-source">数据来源：国家统计局</span>
+        </p>
       </header>
 
       <section className="chart-section">

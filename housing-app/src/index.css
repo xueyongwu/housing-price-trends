@@ -44,9 +44,7 @@ body {
 
 #root {
   width: 100%;
-  max-width: 100%;
   min-height: 100vh;
-  display: flex;
 }
 
 /* 所有数字等宽，tooltip / 表格里不会左右跳动 */

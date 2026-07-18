@@ -48,6 +48,11 @@ body {
   margin: 0;
 }
 
+/* 数据来源单独一行 */
+.subtitle-source {
+  display: block;
+}
+
 /* ========== 年份筛选器 ========== */
 .filter-section {
   display: flex;
@@ -331,6 +336,7 @@ body {
 .td-type {
   font-weight: 500;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .td-type-new {
@@ -411,25 +417,47 @@ body {
 /* ========== 响应式 ========== */
 @media (max-width: 768px) {
   .page {
-    padding: 40px 20px 56px;
-    gap: 36px;
+    padding: 32px 16px 48px;
+    gap: 32px;
   }
   .page-title {
-    font-size: 28px;
+    font-size: 26px;
+  }
+  .page-subtitle {
+    font-size: 13px;
   }
   .chart-box {
     height: 300px;
   }
   .chart-box-lg {
-    height: 360px;
+    height: 340px;
+  }
+  .table-title {
+    font-size: 17px;
   }
   .data-table {
     font-size: 12px;
+  }
+  .data-table thead th,
+  .data-table tbody td {
+    padding: 8px 6px;
+  }
+  .th-tier {
+    min-width: 150px;
+  }
+  .city-tag {
+    font-size: 12px;
+    padding: 2px 6px;
+  }
+  /* 数字卡 + 城市榜两列并排，6 张卡不再竖排一长条 */
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 20px;
   }
   .kpi-card {
     border-right: none;
     border-bottom: 1px solid var(--rule);
     margin-right: 0;
-    padding-right: 0;
+    padding: 14px 0;
   }
 }
